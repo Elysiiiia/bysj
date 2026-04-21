@@ -1,0 +1,107 @@
+{% extends "base_admin.html" %}
+{% block title %}商品管理 — 后台{% endblock %}
+{% block page_title %}商品管理{% endblock %}
+{% block breadcrumb %}后台管理 / 商品管理{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <!-- 工具栏 -->
+    <div class="table-toolbar">
+      <form method="GET" style="display:flex;gap:10px;align-items:center">
+        <input type="text" name="q" value="{{ kw }}" placeholder="搜索品牌、商品名..."
+               class="search-input">
+        <button type="submit" class="btn btn-primary">🔍 搜索</button>
+        <a href="/admin/phones" class="btn btn-secondary">重置</a>
+      </form>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="table-total">共 {{ total }} 条记录</span>
+        <a href="/admin/phones/add" class="btn btn-success">+ 新增商品</a>
+      </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>品牌</th>
+            <th>商品标题</th>
+            <th>当前价格</th>
+            <th>原价</th>
+            <th>销售量</th>
+            <th>店铺名称</th>
+            <th>政府补贴</th>
+            <th>自营</th>
+            <th>平均评分</th>
+            <th>情感分</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td><span class="badge badge-primary">{{ r.brand }}</span></td>
+            <td><div class="text-truncate-2">{{ r.title }}</div></td>
+            <td style="color:#e53e3e;font-weight:700">¥{{ "%.0f"|format(r.current_price or 0) }}</td>
+            <td style="color:#94a3b8;font-size:12px">{{ "¥%.0f"|format(r.original_price) if r.original_price else '-' }}</td>
+            <td>{{ r.sales }}</td>
+            <td><div class="text-truncate-1">{{ r.shop_name }}</div></td>
+            <td>
+              {% if r.gov_subsidy == '是' %}
+                <span class="badge badge-success">是</span>
+              {% else %}
+                <span class="badge badge-secondary">否</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.self_operated == '是' %}
+                <span class="badge badge-primary">是</span>
+              {% else %}
+                <span class="badge badge-secondary">否</span>
+              {% endif %}
+            </td>
+            <td>
+              <span style="color:#f59e0b;font-size:12px">
+                {{ "%.1f"|format(r.avg_rating or 0) }}
+              </span>
+            </td>
+            <td>
+              <span class="sentiment-badge
+                {% if (r.sentiment_score or 0.5) >= 0.75 %}sentiment-positive
+                {% elif (r.sentiment_score or 0.5) >= 0.5 %}sentiment-neutral
+                {% else %}sentiment-negative{% endif %}">
+                {{ ((r.sentiment_score or 0.5)*100)|round|int }}%
+              </span>
+            </td>
+            <td>
+              <div class="action-btns">
+                <a href="/admin/phones/edit/{{ r.id }}" class="btn-table btn-sm-edit">编辑</a>
+                <form method="POST" action="/admin/phones/delete/{{ r.id }}" style="display:inline"
+                      onsubmit="return confirm('确认删除？')">
+                  <button type="submit" class="btn-table btn-sm-delete">删除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="11" style="text-align:center;color:#94a3b8;padding:30px">暂无数据</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 分页 -->
+    {% if total_pages > 1 %}
+    <div class="pagination-wrap">
+      {% if page > 1 %}<a href="?page={{ page-1 }}&q={{ kw }}" class="page-btn">‹</a>{% else %}<span class="page-btn disabled">‹</span>{% endif %}
+      {% for p in range([1,page-2]|max, [total_pages,page+2]|min + 1) %}
+        <a href="?page={{ p }}&q={{ kw }}" class="page-btn {{ 'active' if p==page else '' }}">{{ p }}</a>
+      {% endfor %}
+      {% if page < total_pages %}<a href="?page={{ page+1 }}&q={{ kw }}" class="page-btn">›</a>{% else %}<span class="page-btn disabled">›</span>{% endif %}
+      <span class="pagination-info">第 {{ page }}/{{ total_pages }} 页</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

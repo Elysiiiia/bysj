@@ -1,0 +1,116 @@
+{% extends "base_user.html" %}
+{% block title %}商品列表 — 商品个性化推荐系统{% endblock %}
+{% block page_title %}商品列表{% endblock %}
+{% block breadcrumb %}<span>首页</span> / <span>商品列表</span>{% endblock %}
+
+{% block content %}
+<!-- 搜索过滤栏 -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-body" style="padding:14px 18px">
+    <form method="GET" action="/products" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <input type="text" name="q" value="{{ keyword }}" placeholder="搜索商品名称、品牌..."
+             class="search-input" style="flex:1;min-width:200px">
+      <select name="brand" class="form-control" style="width:150px">
+        <option value="">全部品牌</option>
+        {% for b in brands %}
+        <option value="{{ b }}" {% if b == selected_brand %}selected{% endif %}>{{ b }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">🔍 搜索</button>
+      <a href="/products" class="btn btn-secondary">重置</a>
+      <span style="color:#64748b;font-size:12px;margin-left:auto">共 {{ total }} 件商品</span>
+    </form>
+  </div>
+</div>
+
+<!-- 商品卡片网格 -->
+{% if phones %}
+<div class="phone-grid" style="margin-bottom:20px">
+  {% for phone in phones %}
+  <div class="phone-card" onclick="trackAndGo('{{ phone.product_id }}')">
+    <div class="card-img-wrap">
+      {% if phone.image_url %}
+        <img src="{{ phone.image_url }}" alt="{{ phone.title }}"
+             onerror="this.parentElement.innerHTML='<span class=\'img-placeholder\'>📱</span>'">
+      {% else %}
+        <span class="img-placeholder">📱</span>
+      {% endif %}
+    </div>
+    <div class="card-content">
+      <span class="card-brand">{{ phone.brand }}</span>
+      <div class="card-title">{{ phone.title }}</div>
+      <div class="card-price">¥{{ "%.0f"|format(phone.current_price or 0) }}</div>
+      {% if phone.original_price and phone.original_price > (phone.current_price or 0) %}
+      <div class="card-price-ori">原价 ¥{{ "%.0f"|format(phone.original_price) }}</div>
+      {% endif %}
+      <div class="card-meta">
+        <span class="card-rating">
+          {% set r = (phone.avg_rating or 3)|round|int %}
+          {% for i in range(r) %}★{% endfor %}{% for i in range(5-r) %}☆{% endfor %}
+          <small style="color:#94a3b8;font-size:11px">({{ phone.review_count or 0 }})</small>
+        </span>
+        <span class="sentiment-badge
+          {% if (phone.sentiment_score or 0.5) >= 0.75 %}sentiment-positive
+          {% elif (phone.sentiment_score or 0.5) >= 0.5 %}sentiment-neutral
+          {% else %}sentiment-negative{% endif %}">
+          {% if (phone.sentiment_score or 0.5) >= 0.75 %}好评{% elif (phone.sentiment_score or 0.5) >= 0.5 %}一般{% else %}差评{% endif %}
+        </span>
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:#94a3b8">销量 {{ phone.sales }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center;padding:60px;color:#94a3b8">
+  <div style="font-size:48px">🔍</div>
+  <p style="margin-top:12px">未找到相关商品</p>
+  <a href="/products" class="btn btn-primary" style="margin-top:8px">查看全部</a>
+</div>
+{% endif %}
+
+<!-- 分页 -->
+{% if total_pages > 1 %}
+<div class="pagination-wrap">
+  {% if page > 1 %}
+    <a href="?page={{ page-1 }}&q={{ keyword }}&brand={{ selected_brand }}" class="page-btn">‹</a>
+  {% else %}
+    <span class="page-btn disabled">‹</span>
+  {% endif %}
+
+  {% set start = [1, page-2]|max %}
+  {% set end   = [total_pages, page+2]|min %}
+  {% if start > 1 %}
+    <a href="?page=1&q={{ keyword }}&brand={{ selected_brand }}" class="page-btn">1</a>
+    {% if start > 2 %}<span class="page-btn disabled">…</span>{% endif %}
+  {% endif %}
+  {% for p in range(start, end+1) %}
+    <a href="?page={{ p }}&q={{ keyword }}&brand={{ selected_brand }}"
+       class="page-btn {{ 'active' if p == page else '' }}">{{ p }}</a>
+  {% endfor %}
+  {% if end < total_pages %}
+    {% if end < total_pages - 1 %}<span class="page-btn disabled">…</span>{% endif %}
+    <a href="?page={{ total_pages }}&q={{ keyword }}&brand={{ selected_brand }}" class="page-btn">{{ total_pages }}</a>
+  {% endif %}
+
+  {% if page < total_pages %}
+    <a href="?page={{ page+1 }}&q={{ keyword }}&brand={{ selected_brand }}" class="page-btn">›</a>
+  {% else %}
+    <span class="page-btn disabled">›</span>
+  {% endif %}
+  <span class="pagination-info">第 {{ page }}/{{ total_pages }} 页，共 {{ total }} 件</span>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function trackAndGo(productId) {
+  $.ajax({ url: '/api/track', method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ product_id: productId, action: 'view' }),
+    complete: function() { location.href = '/product/' + productId; }
+  });
+}
+</script>
+{% endblock %}

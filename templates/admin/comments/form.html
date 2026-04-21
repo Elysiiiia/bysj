@@ -1,0 +1,87 @@
+{% extends "base_admin.html" %}
+{% block title %}{{ '编辑' if action=='edit' else '新增' }}评论 — 后台{% endblock %}
+{% block page_title %}{{ '编辑' if action=='edit' else '新增' }}评论{% endblock %}
+{% block breadcrumb %}后台管理 / <a href="/admin/comments">评论管理</a> / {{ '编辑' if action=='edit' else '新增' }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:760px">
+  <div class="card-header">{{ '✏️ 编辑评论' if action=='edit' else '➕ 新增评论' }}</div>
+  <div class="card-body">
+    <form method="POST">
+      <div class="form-row col-2">
+        <div class="form-group">
+          <label class="form-label">品牌</label>
+          <input type="text" name="brand" class="form-control"
+                 value="{{ comment.brand if comment else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">商品编号</label>
+          <input type="text" name="product_id" class="form-control"
+                 value="{{ comment.product_id if comment else '' }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">商品标题</label>
+        <input type="text" name="title" class="form-control"
+               value="{{ comment.title if comment else '' }}">
+      </div>
+
+      <div class="form-row col-2">
+        <div class="form-group">
+          <label class="form-label">用户昵称 <span style="color:red">*</span></label>
+          <input type="text" name="nickname" class="form-control"
+                 value="{{ comment.nickname if comment else '' }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">评分 (1-5) <span style="color:red">*</span></label>
+          <select name="rating" class="form-control" required>
+            {% for i in range(1, 6) %}
+            <option value="{{ i }}" {{ 'selected' if comment and comment.rating|round|int == i else '' }}>{{ i }} 星 {{ '★' * i }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row col-2">
+        <div class="form-group">
+          <label class="form-label">商品规格</label>
+          <input type="text" name="spec" class="form-control"
+                 value="{{ comment.spec if comment else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">评论日期</label>
+          <input type="text" name="comment_date" class="form-control"
+                 placeholder="2024-01-01 12:00:00"
+                 value="{{ comment.comment_date if comment else '' }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">评论内容 <span style="color:red">*</span></label>
+        <textarea name="content" class="form-control" rows="4" required>{{ comment.content if comment else '' }}</textarea>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">保存时将自动重新计算情感分析分值</div>
+      </div>
+
+      {% if comment %}
+      <div class="form-row col-2" style="margin-bottom:12px">
+        <div style="background:#f8fafc;border-radius:6px;padding:10px;font-size:12px">
+          当前情感标签：
+          <span class="badge {% if comment.sentiment_label=='positive' %}badge-success{% elif comment.sentiment_label=='neutral' %}badge-warning{% else %}badge-danger{% endif %}">
+            {{ comment.sentiment_label|sentiment_zh }}
+          </span>
+        </div>
+        <div style="background:#f8fafc;border-radius:6px;padding:10px;font-size:12px">
+          当前情感分值：<b>{{ ((comment.sentiment_score or 0.5)*100)|round|int }}%</b>
+        </div>
+      </div>
+      {% endif %}
+
+      <div style="display:flex;gap:12px;padding-top:8px">
+        <button type="submit" class="btn btn-primary">💾 保存</button>
+        <a href="/admin/comments" class="btn btn-secondary">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

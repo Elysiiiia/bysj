@@ -1,0 +1,267 @@
+{% extends "base_user.html" %}
+{% block title %}协同评论关联分析{% endblock %}
+{% block page_title %}协同评论关联分析{% endblock %}
+{% block breadcrumb %}<span>关联分析</span> / <span>协同评论关联</span>{% endblock %}
+
+{% block content %}
+<div class="assoc-layout">
+  <!-- 主图表区域 -->
+  <div class="assoc-main-chart">
+    <div class="panel-header" style="padding:12px 18px;font-size:13px;font-weight:700;
+         border-bottom:1px solid #e2e8f0;background:#fafbfc">
+      🛒 商品协同评论关联网络图
+      <span style="font-size:11px;font-weight:400;color:#64748b;margin-left:10px">
+        同一用户评论过的商品对 · 类 Apriori 共现挖掘 · 拖拽可缩放
+      </span>
+    </div>
+
+    <div style="flex:1;display:grid;grid-template-rows:3fr 2fr;overflow:hidden">
+      <!-- 上：力导向网络图 -->
+      <div style="border-bottom:1px solid #f1f5f9;position:relative">
+        <div style="font-size:12px;font-weight:600;color:#64748b;
+             padding:5px 14px;position:absolute;top:0;left:0;z-index:1">
+          商品共现关联网络（节点大小=共现频次，连线粗细=关联强度）
+        </div>
+        <div id="chart-graph" style="width:100%;height:100%"></div>
+      </div>
+      <!-- 下：品牌共现热力图 -->
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#64748b;padding:5px 14px">
+          品牌协同评论热力图
+        </div>
+        <div id="chart-heatmap" style="width:100%;height:calc(100% - 26px)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧面板 -->
+  <div class="assoc-sidebar">
+    <div class="card">
+      <div class="card-header">📌 分析说明</div>
+      <div class="card-body" style="font-size:12px;color:#64748b;line-height:1.8">
+        通过挖掘同一用户评论过的商品对，发现：
+        <ul style="padding-left:16px;margin:8px 0">
+          <li>哪些商品被同一批用户共同关注</li>
+          <li>哪些品牌之间用户群体重叠度高</li>
+          <li>强关联商品对的支持度与频次</li>
+        </ul>
+        <b>方法：</b>基于共现矩阵，类 Apriori 频繁项集挖掘。
+      </div>
+    </div>
+
+    <!-- 关联规则排名 -->
+    <div class="card" style="flex:1;overflow:hidden;min-height:0">
+      <div class="card-header">📋 强关联品牌规则</div>
+      <div class="card-body" style="padding:10px;overflow-y:auto;height:calc(100% - 44px)">
+        <div id="rules-list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">🔢 指标说明</div>
+      <div class="card-body" style="font-size:12px;color:#64748b;line-height:1.8;padding:12px">
+        <div><b>支持度</b>：商品对同时被评论的用户比例</div>
+        <div style="margin-top:4px"><b>共现次数</b>：同一用户同时评论的绝对次数</div>
+        <div style="margin-top:4px">连线越粗、节点越大 → 关联越强</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>.content-body { padding:14px 20px; }</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/echarts.min.js"></script>
+<script>
+const BRAND_COLORS = {
+  '华为':'#e14d2a','小米':'#f59e0b','荣耀':'#2563eb',
+  'OPPO':'#16a34a','苹果':'#7c3aed','vivo':'#0891b2'
+};
+const DEFAULT_COLORS = ['#2563eb','#16a34a','#f59e0b','#ef4444','#7c3aed','#0891b2','#ec4899','#84cc16'];
+
+fetch('/analysis/api/association3')
+  .then(r => r.json())
+  .then(data => {
+    renderGraph(data);
+    renderHeatmap(data);
+    renderRules(data);
+    window.addEventListener('resize', () => {
+      [window._chartGraph, window._chartHeat].forEach(c => c && c.resize());
+    });
+  })
+  .catch(e => console.error('加载失败:', e));
+
+
+/* ──────── 力导向网络图 ──────── */
+function renderGraph(data) {
+  const chartEl = document.getElementById('chart-graph');
+  const chart = echarts.init(chartEl);
+  window._chartGraph = chart;
+
+  if (!data.nodes || data.nodes.length === 0) {
+    chart.setOption({ graphic:[{ type:'text', left:'center', top:'42%',
+      style:{text:'暂无共现商品对数据',fontSize:14,fill:'#94a3b8'} }] });
+    return;
+  }
+
+  // 计算每个节点的总关联权重（用于节点大小）
+  const nodeWeight = {};
+  data.links.forEach(l => {
+    nodeWeight[l.source] = (nodeWeight[l.source] || 0) + l.value;
+    nodeWeight[l.target] = (nodeWeight[l.target] || 0) + l.value;
+  });
+  const maxW = Math.max(...Object.values(nodeWeight), 1);
+
+  // 提取品牌分类
+  const brandSet = [...new Set(data.nodes.map(n => n.brand || '其他'))];
+
+  const graphNodes = data.nodes.map(n => {
+    const w   = nodeWeight[n.name] || 1;
+    const sz  = 18 + Math.round((w / maxW) * 36);
+    const bIdx = brandSet.indexOf(n.brand || '其他');
+    const color = BRAND_COLORS[n.brand] || DEFAULT_COLORS[bIdx % DEFAULT_COLORS.length];
+    return {
+      name:       n.name,
+      symbolSize: sz,
+      itemStyle:  { color },
+      label:      { show: true, fontSize: 10, color: '#1e293b' },
+      category:   bIdx,
+    };
+  });
+
+  const maxLink = Math.max(...data.links.map(l => l.value), 1);
+  const graphLinks = data.links.map(l => ({
+    source: l.source,
+    target: l.target,
+    value:  l.value,
+    lineStyle: {
+      width:   1 + Math.round((l.value / maxLink) * 6),
+      opacity: 0.55,
+      color:   'source',
+    },
+    label: {
+      show:      l.value >= 3,
+      formatter: `${l.value}次`,
+      fontSize:  10,
+    },
+  }));
+
+  chart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      formatter: p => p.dataType === 'edge'
+        ? `${p.data.source}<br>↔ ${p.data.target}<br>共现：${p.data.value} 次`
+        : `${p.name}<br>关联权重：${nodeWeight[p.name] || 0}`,
+    },
+    legend: [{
+      data: brandSet,
+      top: 4, right: 4,
+      orient: 'vertical',
+      itemWidth: 10, itemHeight: 10,
+      textStyle: { fontSize: 11 },
+    }],
+    series: [{
+      type:       'graph',
+      layout:     'force',
+      roam:       true,
+      draggable:  true,
+      data:       graphNodes,
+      links:      graphLinks,
+      categories: brandSet.map((b, i) => ({
+        name:      b,
+        itemStyle: { color: BRAND_COLORS[b] || DEFAULT_COLORS[i % DEFAULT_COLORS.length] },
+      })),
+      force: {
+        repulsion:   400,
+        edgeLength:  [80, 200],
+        gravity:     0.1,
+        layoutAnimation: true,
+      },
+      emphasis: {
+        focus:       'adjacency',
+        lineStyle:   { width: 5 },
+      },
+      label:      { position: 'right', fontSize: 10 },
+      edgeLabel:  { fontSize: 10 },
+    }],
+  });
+}
+
+
+/* ──────── 品牌热力图 ──────── */
+function renderHeatmap(data) {
+  const chartEl = document.getElementById('chart-heatmap');
+  const chart = echarts.init(chartEl);
+  window._chartHeat = chart;
+
+  if (!data.brands || data.brands.length === 0) {
+    chart.setOption({ graphic:[{ type:'text', left:'center', top:'40%',
+      style:{text:'暂无品牌共现数据',fontSize:13,fill:'#94a3b8'} }] });
+    return;
+  }
+
+  const maxVal = data.heat_data.reduce((m, d) => Math.max(m, d[2]), 0);
+  chart.setOption({
+    tooltip: {
+      position: 'top',
+      formatter: p => `${data.brands[p.value[0]]} & ${data.brands[p.value[1]]}: ${p.value[2]} 次`,
+    },
+    grid:  { left:'16%', right:'10%', top:'6%', bottom:'18%' },
+    xAxis: { type:'category', data: data.brands, splitArea:{ show:true },
+             axisLabel:{ fontSize:11, rotate: data.brands.length > 5 ? 30 : 0 } },
+    yAxis: { type:'category', data: data.brands, splitArea:{ show:true },
+             axisLabel:{ fontSize:11 } },
+    visualMap: {
+      min:0, max:maxVal || 1,
+      calculable:  true,
+      orient:      'horizontal',
+      left:        'center',
+      bottom:      0,
+      itemWidth:   14, itemHeight: 100,
+      inRange:     { color:['#eff6ff','#2563eb'] },
+      textStyle:   { fontSize:10 },
+    },
+    series: [{
+      type:      'heatmap',
+      data:      data.heat_data,
+      label:     { show: data.brands.length <= 8, fontSize: 11 },
+      emphasis:  { itemStyle:{ shadowBlur:10, shadowColor:'rgba(0,0,0,.2)' } },
+    }],
+  });
+}
+
+
+/* ──────── 关联规则列表 ──────── */
+function renderRules(data) {
+  const el = document.getElementById('rules-list');
+  if (!data.rules || data.rules.length === 0) {
+    el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:20px">暂无关联规则数据</div>';
+    return;
+  }
+  const maxCount = Math.max(...data.rules.map(r => r.count), 1);
+  data.rules.forEach((r, i) => {
+    const pct   = Math.round(r.count / maxCount * 100);
+    const color = i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#2563eb';
+    el.innerHTML += `
+      <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px">
+          <span style="color:#2563eb">${r.antecedent}</span>
+          <span style="color:#94a3b8;margin:0 5px">⇄</span>
+          <span style="color:#16a34a">${r.consequent}</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
+          </div>
+          <span style="font-size:10px;color:#64748b;white-space:nowrap">支持度 ${(r.support*100).toFixed(2)}%</span>
+        </div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px">共现 ${r.count} 次</div>
+      </div>`;
+  });
+}
+</script>
+{% endblock %}

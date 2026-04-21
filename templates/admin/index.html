@@ -1,0 +1,98 @@
+{% extends "base_admin.html" %}
+{% block title %}控制台 — 后台管理{% endblock %}
+{% block page_title %}控制台{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="stat-cards" style="margin-bottom:20px">
+  <div class="stat-card">
+    <span class="stat-icon">📱</span>
+    <div>
+      <div class="stat-label">商品总数</div>
+      <div class="stat-value">{{ stats.phones }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <span class="stat-icon">💬</span>
+    <div>
+      <div class="stat-label">评论总数</div>
+      <div class="stat-value">{{ stats.comments }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <span class="stat-icon">👥</span>
+    <div>
+      <div class="stat-label">用户总数</div>
+      <div class="stat-value">{{ stats.users }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <span class="stat-icon">🔄</span>
+    <div>
+      <div class="stat-label">行为记录</div>
+      <div class="stat-value">{{ stats.behaviors }}</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <!-- 品牌商品数统计 -->
+  <div class="card">
+    <div class="card-header">📊 各品牌商品数量</div>
+    <div class="card-body" style="padding:14px">
+      {% for b in brands %}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:12px;width:70px;flex-shrink:0">{{ b.brand }}</span>
+        <div style="flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:{{ [b.cnt / (brands[0].cnt if brands else 1) * 100, 100]|min|round|int }}%;background:#2563eb;border-radius:4px"></div>
+        </div>
+        <span style="font-size:12px;color:#64748b;width:30px;text-align:right">{{ b.cnt }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 最近评论 -->
+  <div class="card">
+    <div class="card-header">💬 最近评论</div>
+    <div class="card-body" style="padding:0">
+      <table class="data-table">
+        <thead><tr>
+          <th>用户昵称</th><th>品牌</th><th>评分</th><th>情感</th><th>日期</th>
+        </tr></thead>
+        <tbody>
+          {% for c in recent_comments %}
+          <tr>
+            <td>{{ c.nickname }}</td>
+            <td>{{ c.brand }}</td>
+            <td><span style="color:#f59e0b">{{ '★' * (c.rating|round|int) }}</span></td>
+            <td>
+              <span class="badge
+                {% if c.sentiment_label == 'positive' %}badge-success
+                {% elif c.sentiment_label == 'neutral' %}badge-warning
+                {% else %}badge-danger{% endif %}">
+                {{ c.sentiment_label|sentiment_zh }}
+              </span>
+            </td>
+            <td style="font-size:11px;color:#94a3b8">{{ c.comment_date[:10] if c.comment_date else '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 快捷操作 -->
+<div class="card" style="margin-top:20px">
+  <div class="card-header">⚡ 快捷操作</div>
+  <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px">
+    <a href="/admin/phones/add" class="btn btn-primary">+ 添加商品</a>
+    <a href="/admin/comments/add" class="btn btn-success">+ 添加评论</a>
+    <a href="/admin/users/add" class="btn btn-secondary">+ 添加用户</a>
+    <a href="/admin/phones" class="btn btn-outline-primary">管理商品</a>
+    <a href="/admin/comments" class="btn btn-outline-primary">管理评论</a>
+    <a href="/admin/users" class="btn btn-outline-primary">管理用户</a>
+  </div>
+</div>
+{% endblock %}

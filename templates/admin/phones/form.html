@@ -1,0 +1,97 @@
+{% extends "base_admin.html" %}
+{% block title %}{{ '编辑' if action=='edit' else '新增' }}商品 — 后台{% endblock %}
+{% block page_title %}{{ '编辑' if action=='edit' else '新增' }}商品{% endblock %}
+{% block breadcrumb %}后台管理 / <a href="/admin/phones">商品管理</a> / {{ '编辑' if action=='edit' else '新增' }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:860px">
+  <div class="card-header">{{ '✏️ 编辑商品信息' if action=='edit' else '➕ 新增商品' }}</div>
+  <div class="card-body">
+    <form method="POST">
+      <div class="form-row col-2">
+        <div class="form-group">
+          <label class="form-label">品牌 <span style="color:red">*</span></label>
+          <input type="text" name="brand" class="form-control"
+                 value="{{ phone.brand if phone else '' }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">商品编号</label>
+          <input type="text" name="product_id" class="form-control"
+                 value="{{ phone.product_id if phone else '' }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">商品标题 <span style="color:red">*</span></label>
+        <input type="text" name="title" class="form-control"
+               value="{{ phone.title if phone else '' }}" required>
+      </div>
+
+      <div class="form-row col-3">
+        <div class="form-group">
+          <label class="form-label">当前价格</label>
+          <input type="number" step="0.01" name="current_price" class="form-control"
+                 value="{{ phone.current_price if phone else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">原价</label>
+          <input type="number" step="0.01" name="original_price" class="form-control"
+                 value="{{ phone.original_price if phone else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">优惠力度价</label>
+          <input type="number" step="0.01" name="discount_price" class="form-control"
+                 value="{{ phone.discount_price if phone else '' }}">
+        </div>
+      </div>
+
+      <div class="form-row col-2">
+        <div class="form-group">
+          <label class="form-label">销售量</label>
+          <input type="text" name="sales" class="form-control"
+                 value="{{ phone.sales if phone else '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">店铺名称</label>
+          <input type="text" name="shop_name" class="form-control"
+                 value="{{ phone.shop_name if phone else '' }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">图片地址</label>
+        <input type="text" name="image_url" class="form-control"
+               value="{{ phone.image_url if phone else '' }}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">商品链接</label>
+        <input type="text" name="link_url" class="form-control"
+               value="{{ phone.link_url if phone else '' }}">
+      </div>
+
+      <div class="form-row col-2">
+        <div class="form-group">
+          <label class="form-label">政府补贴</label>
+          <select name="gov_subsidy" class="form-control">
+            <option value="是" {{ 'selected' if phone and phone.gov_subsidy=='是' else '' }}>是</option>
+            <option value="否" {{ 'selected' if phone and phone.gov_subsidy=='否' else '' }}>否</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">是否自营</label>
+          <select name="self_operated" class="form-control">
+            <option value="是" {{ 'selected' if phone and phone.self_operated=='是' else '' }}>是</option>
+            <option value="否" {{ 'selected' if phone and phone.self_operated=='否' else '' }}>否</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;padding-top:8px">
+        <button type="submit" class="btn btn-primary">💾 保存</button>
+        <a href="/admin/phones" class="btn btn-secondary">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

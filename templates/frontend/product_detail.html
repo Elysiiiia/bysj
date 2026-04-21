@@ -1,0 +1,198 @@
+{% extends "base_user.html" %}
+{% block title %}{{ phone.title[:20] }}... — 商品详情{% endblock %}
+{% block page_title %}商品详情{% endblock %}
+{% block breadcrumb %}<a href="/products">商品列表</a> / <span>详情</span>{% endblock %}
+
+{% block content %}
+<div class="detail-layout" style="margin-bottom:20px">
+  <!-- 商品图片 -->
+  <div>
+    <div class="detail-img-box">
+      {% if phone.image_url %}
+        <img src="{{ phone.image_url }}" alt="{{ phone.title }}"
+             onerror="this.src=''; this.parentElement.innerHTML='<span style=\'font-size:80px\'>📱</span>'">
+      {% else %}
+        <span style="font-size:80px">📱</span>
+      {% endif %}
+    </div>
+    <!-- 情感评分指示 -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-header">📊 情感分析</div>
+      <div class="card-body">
+        {% set sent_pct = ((phone.sentiment_score or 0.5) * 100)|round|int %}
+        <div class="sentiment-meter">
+          <div class="label">情感分 {{ sent_pct }}%</div>
+          <div class="meter-track">
+            <div class="meter-fill
+              {% if sent_pct >= 65 %}meter-positive
+              {% elif sent_pct >= 40 %}meter-neutral
+              {% else %}meter-negative{% endif %}"
+              style="width:{{ sent_pct }}%"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:#64748b">
+          {% set pos = sent_map.get('positive', 0) %}
+          {% set neu = sent_map.get('neutral',  0) %}
+          {% set neg = sent_map.get('negative', 0) %}
+          {% set total_s = pos + neu + neg %}
+          {% if total_s > 0 %}
+          <div class="rating-bar-wrap">
+            <span class="label" style="color:#16a34a">正面</span>
+            <div class="rating-bar"><div class="rating-bar-fill" style="width:{{ (pos/total_s*100)|round|int }}%;background:#16a34a"></div></div>
+            <span class="count">{{ pos }}</span>
+          </div>
+          <div class="rating-bar-wrap">
+            <span class="label" style="color:#d97706">中性</span>
+            <div class="rating-bar"><div class="rating-bar-fill" style="width:{{ (neu/total_s*100)|round|int }}%;background:#d97706"></div></div>
+            <span class="count">{{ neu }}</span>
+          </div>
+          <div class="rating-bar-wrap">
+            <span class="label" style="color:#dc2626">负面</span>
+            <div class="rating-bar"><div class="rating-bar-fill" style="width:{{ (neg/total_s*100)|round|int }}%;background:#dc2626"></div></div>
+            <span class="count">{{ neg }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 商品信息 -->
+  <div>
+    <div class="card">
+      <div class="card-body">
+        <span class="badge badge-primary" style="margin-bottom:10px">{{ phone.brand }}</span>
+        <h3 style="font-size:18px;font-weight:700;margin:0 0 12px;line-height:1.5">{{ phone.title }}</h3>
+
+        <div class="detail-price">¥{{ "%.0f"|format(phone.current_price or 0) }}</div>
+        {% if phone.original_price %}
+        <div class="detail-original">原价 ¥{{ "%.0f"|format(phone.original_price) }}
+          {% if phone.discount_price %}，立减 ¥{{ "%.0f"|format(phone.discount_price) }}{% endif %}
+        </div>
+        {% endif %}
+
+        <div class="detail-tags" style="margin-top:14px">
+          {% if phone.gov_subsidy == '是' %}
+            <span class="badge badge-success">政府补贴</span>
+          {% endif %}
+          {% if phone.self_operated == '是' %}
+            <span class="badge badge-primary">自营</span>
+          {% endif %}
+          <span class="badge badge-secondary">销量 {{ phone.sales }}</span>
+          <span class="badge badge-secondary">{{ phone.shop_name }}</span>
+        </div>
+
+        <table class="detail-spec-table" style="margin-top:16px">
+          <tr><td>平均评分</td>
+              <td><span style="color:#f59e0b">
+                {% set r = (phone.avg_rating or 3)|round|int %}
+                {% for i in range(r) %}★{% endfor %}{% for i in range(5-r) %}☆{% endfor %}
+              </span> {{ "%.1f"|format(phone.avg_rating or 0) }} 分</td></tr>
+          <tr><td>评论数量</td><td>{{ total_comments }} 条评论</td></tr>
+          <tr><td>情感倾向</td>
+              <td><span class="sentiment-badge
+                {% if (phone.sentiment_score or 0.5) >= 0.75 %}sentiment-positive
+                {% elif (phone.sentiment_score or 0.5) >= 0.5 %}sentiment-neutral
+                {% else %}sentiment-negative{% endif %}">
+                {% if (phone.sentiment_score or 0.5) >= 0.75 %}好评如潮{% elif (phone.sentiment_score or 0.5) >= 0.5 %}评价一般{% else %}差评较多{% endif %}
+              </span></td></tr>
+          <tr><td>商品编号</td><td style="color:#94a3b8;font-size:12px">{{ phone.product_id }}</td></tr>
+        </table>
+
+        <div style="margin-top:18px;display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="trackLike('{{ phone.product_id }}')">👍 标记喜欢</button>
+          {% if phone.link_url %}
+          <a href="{{ phone.link_url }}" target="_blank" class="btn btn-secondary">🔗 查看原链接</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 用户评论 -->
+<div class="card" style="margin-bottom:20px">
+  <div class="card-header">💬 用户评论 <span style="font-size:12px;font-weight:400;color:#64748b">({{ total_comments }} 条)</span></div>
+  <div class="card-body">
+    {% for c in comments %}
+    <div class="comment-card">
+      <div class="comment-header">
+        <span class="comment-user">{{ c.nickname }}</span>
+        <span class="star-rating">
+          {% for i in range(c.rating|round|int) %}★{% endfor %}{% for i in range(5 - c.rating|round|int) %}☆{% endfor %}
+        </span>
+        <span class="sentiment-badge
+          {% if c.sentiment_label == 'positive' %}sentiment-positive
+          {% elif c.sentiment_label == 'neutral' %}sentiment-neutral
+          {% else %}sentiment-negative{% endif %}">
+          {{ c.sentiment_label|sentiment_zh }}</span>
+        <span class="comment-date" style="margin-left:auto">{{ c.comment_date[:10] if c.comment_date else '' }}</span>
+      </div>
+      <div class="comment-content">{{ c.content }}</div>
+      {% if c.spec %}
+      <div class="comment-spec">规格：{{ c.spec }}</div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:30px;color:#94a3b8">暂无评论</div>
+    {% endfor %}
+
+    <!-- 评论分页 -->
+    {% if total_pages > 1 %}
+    <div class="pagination-wrap" style="margin-top:10px">
+      {% if page > 1 %}
+        <a href="?page={{ page-1 }}" class="page-btn">‹</a>
+      {% endif %}
+      {% for p in range(1, total_pages+1) %}
+        <a href="?page={{ p }}" class="page-btn {{ 'active' if p == page else '' }}">{{ p }}</a>
+      {% endfor %}
+      {% if page < total_pages %}
+        <a href="?page={{ page+1 }}" class="page-btn">›</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 相关推荐 -->
+{% if related %}
+<div class="card">
+  <div class="card-header">🔍 相似商品推荐</div>
+  <div class="card-body">
+    <div class="phone-grid" style="grid-template-columns:repeat(4,1fr)">
+      {% for phone in related %}
+      <div class="phone-card" onclick="location.href='/product/{{ phone.product_id }}'">
+        <div class="card-img-wrap">
+          {% if phone.image_url %}
+            <img src="{{ phone.image_url }}" alt="{{ phone.title }}"
+                 onerror="this.parentElement.innerHTML='<span class=\'img-placeholder\'>📱</span>'">
+          {% else %}
+            <span class="img-placeholder">📱</span>
+          {% endif %}
+        </div>
+        <div class="card-content">
+          <span class="card-brand">{{ phone.brand }}</span>
+          <div class="card-title">{{ phone.title }}</div>
+          <div class="card-price">¥{{ "%.0f"|format(phone.current_price or 0) }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function trackLike(pid) {
+  $.ajax({ url: '/api/track', method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ product_id: pid, action: 'like' }),
+    success: function() {
+      alert('已标记喜欢，推荐算法将根据您的偏好更新！');
+    }
+  });
+}
+</script>
+{% endblock %}

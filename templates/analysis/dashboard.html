@@ -1,0 +1,181 @@
+{% extends "base_user.html" %}
+{% block title %}数据分析大屏{% endblock %}
+{% block page_title %}数据分析大屏{% endblock %}
+{% block breadcrumb %}<span>数据分析大屏</span>{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+  <!-- 图1：品牌销量分布（跨两行） -->
+  <div class="chart-panel span-row">
+    <div class="panel-header">📊 各品牌销售量分布</div>
+    <div class="panel-body"><div id="chart-brand-sales" class="chart-container"></div></div>
+  </div>
+  <!-- 图2：价格区间分布 -->
+  <div class="chart-panel">
+    <div class="panel-header">💰 价格区间分布</div>
+    <div class="panel-body"><div id="chart-price" class="chart-container"></div></div>
+  </div>
+  <!-- 图3：情感倾向分布 -->
+  <div class="chart-panel">
+    <div class="panel-header">💬 评论情感倾向</div>
+    <div class="panel-body"><div id="chart-sentiment" class="chart-container"></div></div>
+  </div>
+  <!-- 图4：月度评论趋势 -->
+  <div class="chart-panel">
+    <div class="panel-header">📈 月度评论数量与评分趋势</div>
+    <div class="panel-body"><div id="chart-trend" class="chart-container"></div></div>
+  </div>
+  <!-- 图5：品牌情感雷达 -->
+  <div class="chart-panel">
+    <div class="panel-header">🕸 品牌综合评价雷达图</div>
+    <div class="panel-body"><div id="chart-radar" class="chart-container"></div></div>
+  </div>
+  <!-- 图6：评论词云 -->
+  <div class="chart-panel">
+    <div class="panel-header">☁ 评论高频词云</div>
+    <div class="panel-body"><div id="chart-wordcloud" class="chart-container"></div></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .content-body { padding: 14px 20px; }
+  .dashboard-grid {
+    height: calc(100vh - 56px - 32px);
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 12px;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/echarts.min.js"></script>
+<script src="/static/echarts-wordcloud.min.js"></script>
+<script>
+const COLORS = ['#2563eb','#16a34a','#f59e0b','#ef4444','#7c3aed','#0891b2','#ec4899','#84cc16'];
+
+function initCharts(data) {
+  // 图1 品牌销量 - 横向条形图
+  const chartBrand = echarts.init(document.getElementById('chart-brand-sales'));
+  const brands = data.brand_sales.map(d => d.brand);
+  const sales  = data.brand_sales.map(d => d.sales);
+  chartBrand.setOption({
+    tooltip: { trigger:'axis', axisPointer:{type:'shadow'} },
+    grid: { left:'16%', right:'8%', top:'6%', bottom:'8%' },
+    xAxis: { type:'value', axisLabel:{formatter:v=>v>=10000?(v/10000).toFixed(0)+'万':v} },
+    yAxis: { type:'category', data: brands, axisLabel:{fontSize:12} },
+    series: [{
+      type:'bar', data: sales, barMaxWidth: 36,
+      itemStyle: { color: (p) => COLORS[p.dataIndex % COLORS.length], borderRadius:[0,4,4,0] },
+      label: { show:true, position:'right', formatter:p=>p.value>=10000?(p.value/10000).toFixed(1)+'万':p.value }
+    }]
+  });
+
+  // 图2 价格区间 - 柱状图
+  const chartPrice = echarts.init(document.getElementById('chart-price'));
+  chartPrice.setOption({
+    tooltip: { trigger:'axis' },
+    grid: { left:'8%', right:'6%', top:'10%', bottom:'18%' },
+    xAxis: { type:'category', data: data.price_ranges.map(d=>d.range), axisLabel:{fontSize:11, rotate:15} },
+    yAxis: { type:'value' },
+    series: [{
+      type:'bar', data: data.price_ranges.map(d=>d.count), barMaxWidth:40,
+      itemStyle: { color:{ type:'linear', x:0,y:0,x2:0,y2:1,
+        colorStops:[{offset:0,color:'#2563eb'},{offset:1,color:'#93c5fd'}]}, borderRadius:[4,4,0,0] },
+      label: { show:true, position:'top', fontSize:11 }
+    }]
+  });
+
+  // 图3 情感分布 - 环形图
+  const chartSent = echarts.init(document.getElementById('chart-sentiment'));
+  const sentColors = { positive:'#16a34a', neutral:'#f59e0b', negative:'#ef4444' };
+  const sentNames  = { positive:'正面评价', neutral:'中性评价', negative:'负面评价' };
+  chartSent.setOption({
+    tooltip: { trigger:'item', formatter:'{b}: {c} ({d}%)' },
+    legend: { bottom:'4%', itemWidth:12, textStyle:{fontSize:11} },
+    series: [{
+      type:'pie', radius:['40%','68%'], center:['50%','46%'],
+      label: { formatter:'{b}\n{d}%', fontSize:11 },
+      data: data.sentiment_dist.map(d=>({
+        name: sentNames[d.label]||d.label,
+        value: d.count,
+        itemStyle:{ color: sentColors[d.label]||'#94a3b8' }
+      }))
+    }]
+  });
+
+  // 图4 月度趋势 - 折线面积图
+  const chartTrend = echarts.init(document.getElementById('chart-trend'));
+  chartTrend.setOption({
+    tooltip: { trigger:'axis' },
+    legend: { top:0, itemWidth:12, textStyle:{fontSize:11} },
+    grid: { left:'10%', right:'8%', top:'22%', bottom:'12%' },
+    xAxis: { type:'category', data: data.monthly_trend.map(d=>d.month), axisLabel:{fontSize:10, rotate:20} },
+    yAxis: [
+      { type:'value', name:'评论数', nameTextStyle:{fontSize:11} },
+      { type:'value', name:'评分', min:1, max:5, nameTextStyle:{fontSize:11} }
+    ],
+    series: [
+      { name:'评论数量', type:'line', smooth:true, areaStyle:{opacity:.2},
+        data: data.monthly_trend.map(d=>d.count), itemStyle:{color:'#2563eb'} },
+      { name:'平均评分', type:'line', smooth:true, yAxisIndex:1,
+        data: data.monthly_trend.map(d=>d.avg_rating), itemStyle:{color:'#f59e0b'},
+        lineStyle:{type:'dashed'} }
+    ]
+  });
+
+  // 图5 品牌雷达图
+  const chartRadar = echarts.init(document.getElementById('chart-radar'));
+  chartRadar.setOption({
+    tooltip: { trigger:'item' },
+    legend: { bottom:0, itemWidth:10, textStyle:{fontSize:10} },
+    radar: {
+      indicator:[
+        {name:'情感均分',max:100},{name:'平均评分',max:100},
+        {name:'评论热度',max:100},{name:'最高情感',max:100},{name:'最低情感',max:100}
+      ],
+      radius:'62%', center:['50%','48%'], nameGap:6,
+      name:{ textStyle:{fontSize:11} }
+    },
+    series: [{
+      type:'radar',
+      data: data.radar_data.map((d,i)=>({
+        name: d.brand,
+        value: [d.avg_sentiment, d.avg_rating, d.review_cnt, d.max_sentiment, d.min_sentiment],
+        itemStyle:{ color: COLORS[i%COLORS.length] },
+        areaStyle:{ opacity:.08 }
+      }))
+    }]
+  });
+
+  // 图6 词云
+  const chartWC = echarts.init(document.getElementById('chart-wordcloud'));
+  chartWC.setOption({
+    series: [{
+      type:'wordCloud',
+      shape:'circle',
+      left:'center', top:'center',
+      width:'90%', height:'88%',
+      sizeRange:[12,44],
+      rotationRange:[-45,45],
+      gridSize:6,
+      textStyle:{ color:()=>COLORS[Math.floor(Math.random()*COLORS.length)] },
+      data: data.wordcloud
+    }]
+  });
+
+  // 响应窗口缩放
+  window.addEventListener('resize', () => {
+    [chartBrand,chartPrice,chartSent,chartTrend,chartRadar,chartWC].forEach(c=>c.resize());
+  });
+}
+
+fetch('/analysis/api/dashboard')
+  .then(r=>r.json())
+  .then(initCharts)
+  .catch(e=>console.error(e));
+</script>
+{% endblock %}

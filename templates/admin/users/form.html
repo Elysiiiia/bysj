@@ -1,0 +1,36 @@
+{% extends "base_admin.html" %}
+{% block title %}{{ '编辑' if action=='edit' else '新增' }}用户 — 后台{% endblock %}
+{% block page_title %}{{ '编辑' if action=='edit' else '新增' }}用户{% endblock %}
+{% block breadcrumb %}后台管理 / <a href="/admin/users">用户管理</a> / {{ '编辑' if action=='edit' else '新增' }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:500px">
+  <div class="card-header">{{ '✏️ 编辑用户' if action=='edit' else '➕ 新增用户' }}</div>
+  <div class="card-body">
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">用户名 <span style="color:red">*</span></label>
+        <input type="text" name="username" class="form-control"
+               value="{{ user.username if user else '' }}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">密码 <span style="color:red">*</span></label>
+        <input type="text" name="password" class="form-control"
+               value="{{ user.password if user else '' }}" required>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">明文存储，请勿设置敏感密码</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">角色</label>
+        <select name="role" class="form-control">
+          <option value="user"  {{ 'selected' if not user or user.role == 'user'  else '' }}>普通用户</option>
+          <option value="admin" {{ 'selected' if user and user.role == 'admin' else '' }}>管理员</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:12px;padding-top:8px">
+        <button type="submit" class="btn btn-primary">💾 保存</button>
+        <a href="/admin/users" class="btn btn-secondary">取消</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

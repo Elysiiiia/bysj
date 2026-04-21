@@ -1,0 +1,78 @@
+{% extends "base_admin.html" %}
+{% block title %}用户管理 — 后台{% endblock %}
+{% block page_title %}用户管理{% endblock %}
+{% block breadcrumb %}后台管理 / 用户管理{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <div class="table-toolbar">
+      <form method="GET" style="display:flex;gap:10px;align-items:center">
+        <input type="text" name="q" value="{{ kw }}" placeholder="搜索用户名..."
+               class="search-input">
+        <button type="submit" class="btn btn-primary">🔍 搜索</button>
+        <a href="/admin/users" class="btn btn-secondary">重置</a>
+      </form>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="table-total">共 {{ total }} 位用户</span>
+        <a href="/admin/users/add" class="btn btn-success">+ 新增用户</a>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>用户名</th>
+            <th>角色</th>
+            <th>密码</th>
+            <th>注册时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:18px">{{ '🛡' if r.role=='admin' else '👤' }}</span>
+                <b>{{ r.username }}</b>
+              </div>
+            </td>
+            <td>
+              <span class="badge {{ 'badge-danger' if r.role=='admin' else 'badge-primary' }}">
+                {{ '管理员' if r.role=='admin' else '普通用户' }}
+              </span>
+            </td>
+            <td style="color:#94a3b8;font-size:12px">{{ '*' * [r.password|length, 8]|min }}</td>
+            <td style="font-size:12px;color:#64748b">{{ r.created_at[:16] if r.created_at else '' }}</td>
+            <td>
+              <div class="action-btns">
+                <a href="/admin/users/edit/{{ r.id }}" class="btn-table btn-sm-edit">编辑</a>
+                <form method="POST" action="/admin/users/delete/{{ r.id }}" style="display:inline"
+                      onsubmit="return confirm('确认删除用户 {{ r.username }}？')">
+                  <button type="submit" class="btn-table btn-sm-delete">删除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:30px">暂无数据</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination-wrap">
+      {% if page > 1 %}<a href="?page={{ page-1 }}&q={{ kw }}" class="page-btn">‹</a>{% else %}<span class="page-btn disabled">‹</span>{% endif %}
+      {% for p in range([1,page-2]|max, [total_pages,page+2]|min + 1) %}
+        <a href="?page={{ p }}&q={{ kw }}" class="page-btn {{ 'active' if p==page else '' }}">{{ p }}</a>
+      {% endfor %}
+      {% if page < total_pages %}<a href="?page={{ page+1 }}&q={{ kw }}" class="page-btn">›</a>{% else %}<span class="page-btn disabled">›</span>{% endif %}
+      <span class="pagination-info">第 {{ page }}/{{ total_pages }} 页</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

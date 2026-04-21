@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 — 商品个性化推荐系统</title>
+  <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="logo-icon">📱</span>
+      <h3>商品个性化推荐系统</h3>
+      <p>基于用户评论情感分析</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">⚠ {{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <!-- 登录角色切换 -->
+    <div class="login-tabs">
+      <div class="login-tab active" id="tab-user" onclick="switchTab('user')">👤 用户登录</div>
+      <div class="login-tab" id="tab-admin" onclick="switchTab('admin')">🛡 管理员登录</div>
+    </div>
+
+    <form method="POST" action="/login" id="loginForm">
+      <input type="hidden" name="role" id="roleInput" value="user">
+
+      <div class="login-form-group">
+        <label>用户名</label>
+        <input type="text" name="username" id="usernameInput"
+               placeholder="请输入用户名" required autocomplete="username">
+      </div>
+      <div class="login-form-group">
+        <label>密码</label>
+        <input type="password" name="password" id="passwordInput"
+               placeholder="请输入密码" required autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="login-btn">登 录</button>
+    </form>
+
+    <div class="login-hint" id="hintUser">
+      测试账号：<code>Test</code> / <code>123456</code>
+    </div>
+    <div class="login-hint" id="hintAdmin" style="display:none">
+      管理员账号：<code>admin</code> / <code>admin123</code>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CREDENTIALS = {
+    user:  { username: 'Test',  password: '123456'   },
+    admin: { username: 'admin', password: 'admin123' }
+  };
+
+  function switchTab(role) {
+    document.getElementById('tab-user').classList.toggle('active', role === 'user');
+    document.getElementById('tab-admin').classList.toggle('active', role === 'admin');
+    document.getElementById('roleInput').value = role;
+    document.getElementById('usernameInput').value = CREDENTIALS[role].username;
+    document.getElementById('passwordInput').value = CREDENTIALS[role].password;
+    document.getElementById('hintUser').style.display  = role === 'user'  ? '' : 'none';
+    document.getElementById('hintAdmin').style.display = role === 'admin' ? '' : 'none';
+  }
+
+  // 默认填充用户账号
+  switchTab('user');
+</script>
+</body>
+</html>

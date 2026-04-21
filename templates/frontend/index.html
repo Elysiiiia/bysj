@@ -1,0 +1,107 @@
+{% extends "base_user.html" %}
+{% block title %}首页 — 商品个性化推荐系统{% endblock %}
+{% block page_title %}首页{% endblock %}
+{% block breadcrumb %}<span>首页</span>{% endblock %}
+
+{% block content %}
+<!-- 英雄横幅 -->
+<div class="hero-banner">
+  <div>
+    <h2>📱 基于评论情感分析的个性化推荐</h2>
+    <p>融合协同过滤与情感特征，为您精准推送最适合的手机</p>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="val">{{ total_phones }}</div>
+      <div class="lbl">商品总数</div>
+    </div>
+    <div class="hero-stat">
+      <div class="val">{{ total_comments }}</div>
+      <div class="lbl">用户评论</div>
+    </div>
+    <div class="hero-stat">
+      <div class="val">{{ pos_rate }}%</div>
+      <div class="lbl">好评率</div>
+    </div>
+  </div>
+</div>
+
+<!-- 精品推荐 -->
+<div class="card" style="margin-bottom:20px">
+  <div class="card-header">⭐ 专属推荐 <span style="font-weight:400;font-size:12px;color:#64748b;margin-left:8px">基于您的浏览偏好与情感分析算法</span></div>
+  <div class="card-body">
+    {% if recommendations %}
+    <div class="phone-grid">
+      {% for phone in recommendations[:8] %}
+      <div class="phone-card" onclick="location.href='/product/{{ phone.product_id }}'">
+        <div class="card-img-wrap">
+          {% if phone.image_url %}
+            <img src="{{ phone.image_url }}" alt="{{ phone.title }}"
+                 onerror="this.parentElement.innerHTML='<span class=\'img-placeholder\'>📱</span>'">
+          {% else %}
+            <span class="img-placeholder">📱</span>
+          {% endif %}
+        </div>
+        <div class="card-content">
+          <span class="card-brand">{{ phone.brand }}</span>
+          <div class="card-title">{{ phone.title }}</div>
+          <div class="card-price">¥{{ "%.0f"|format(phone.current_price or 0) }}</div>
+          <div class="card-meta">
+            <span class="card-rating">
+              {% set r = (phone.avg_rating or 3)|round|int %}
+              {% for i in range(r) %}★{% endfor %}{% for i in range(5-r) %}☆{% endfor %}
+            </span>
+            <span class="sentiment-badge
+              {% if (phone.sentiment_score or 0.5) >= 0.75 %}sentiment-positive
+              {% elif (phone.sentiment_score or 0.5) >= 0.5 %}sentiment-neutral
+              {% else %}sentiment-negative{% endif %}">
+              {% if (phone.sentiment_score or 0.5) >= 0.75 %}正面{% elif (phone.sentiment_score or 0.5) >= 0.5 %}中性{% else %}负面{% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:40px;color:#94a3b8">
+      <div style="font-size:36px">📭</div>
+      <p style="margin-top:8px">暂无推荐数据，浏览商品后将为您个性化推荐</p>
+      <a href="/products" class="btn btn-primary" style="margin-top:8px">浏览商品</a>
+    </div>
+    {% endif %}
+    <div style="text-align:center;margin-top:16px">
+      <a href="/recommend" class="btn btn-outline-primary">查看完整推荐列表 →</a>
+    </div>
+  </div>
+</div>
+
+<!-- 精选商品 -->
+<div class="card">
+  <div class="card-header">🏆 精选好评商品 <span style="font-weight:400;font-size:12px;color:#64748b;margin-left:8px">综合情感评分最高</span></div>
+  <div class="card-body">
+    <div class="phone-grid">
+      {% for phone in featured %}
+      <div class="phone-card" onclick="location.href='/product/{{ phone.product_id }}'">
+        <div class="card-img-wrap">
+          {% if phone.image_url %}
+            <img src="{{ phone.image_url }}" alt="{{ phone.title }}"
+                 onerror="this.parentElement.innerHTML='<span class=\'img-placeholder\'>📱</span>'">
+          {% else %}
+            <span class="img-placeholder">📱</span>
+          {% endif %}
+        </div>
+        <div class="card-content">
+          <span class="card-brand">{{ phone.brand }}</span>
+          <div class="card-title">{{ phone.title }}</div>
+          <div class="card-price">¥{{ "%.0f"|format(phone.current_price or 0) }}</div>
+          <div class="card-meta">
+            <span class="card-sales">销量 {{ phone.sales }}</span>
+            <span class="sentiment-badge sentiment-positive">精品</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

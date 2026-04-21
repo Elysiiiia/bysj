@@ -1,0 +1,118 @@
+{% extends "base_user.html" %}
+{% block title %}品牌情感关联分析{% endblock %}
+{% block page_title %}品牌情感关联分析{% endblock %}
+{% block breadcrumb %}<span>关联分析</span> / <span>品牌情感关联</span>{% endblock %}
+
+{% block content %}
+<div class="assoc-layout">
+  <!-- 主图表 -->
+  <div class="assoc-main-chart">
+    <div class="panel-header" style="padding:12px 18px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0;background:#fafbfc">
+      🔗 品牌 × 情感倾向关联矩阵
+      <span style="font-size:11px;font-weight:400;color:#64748b;margin-left:10px">
+        分析各品牌用户评论的情感分布关联关系
+      </span>
+    </div>
+    <div style="flex:1;padding:16px;overflow:hidden;display:flex;flex-direction:column;gap:16px">
+      <!-- 堆叠条形图 -->
+      <div id="chart-bar" style="flex:1;min-height:0"></div>
+    </div>
+  </div>
+
+  <!-- 右侧数据面板 -->
+  <div class="assoc-sidebar">
+    <!-- 说明卡片 -->
+    <div class="card">
+      <div class="card-header">📌 分析说明</div>
+      <div class="card-body" style="font-size:12px;color:#64748b;line-height:1.8">
+        本模块通过挖掘用户评论情感标签与商品品牌之间的关联关系：
+        <ul style="padding-left:16px;margin:8px 0">
+          <li>统计各品牌的正面/中性/负面评论占比</li>
+          <li>挖掘品牌满意度分布规律</li>
+          <li>辅助用户了解品牌口碑差异</li>
+        </ul>
+      </div>
+    </div>
+    <!-- 品牌满意度排名 -->
+    <div class="card" style="flex:1;overflow:hidden">
+      <div class="card-header">🏆 品牌好评率排名</div>
+      <div class="card-body" style="padding:12px;overflow-y:auto;max-height:calc(100% - 44px)">
+        <div id="brand-rank-list"></div>
+      </div>
+    </div>
+    <!-- 情感标签颜色说明 -->
+    <div class="card">
+      <div class="card-header">🎨 图例说明</div>
+      <div class="card-body" style="padding:12px;font-size:12px">
+        <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+          <span style="width:14px;height:14px;background:#16a34a;border-radius:3px;flex-shrink:0"></span>
+          <span>正面评价：情感分≥0.75</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+          <span style="width:14px;height:14px;background:#f59e0b;border-radius:3px;flex-shrink:0"></span>
+          <span>中性评价：情感分 0.40~0.75</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="width:14px;height:14px;background:#ef4444;border-radius:3px;flex-shrink:0"></span>
+          <span>负面评价：情感分＜0.40</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>.content-body { padding:14px 20px; }</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/echarts.min.js"></script>
+<script>
+fetch('/analysis/api/association1')
+  .then(r => r.json())
+  .then(data => {
+    // 堆叠条形图
+    const chart = echarts.init(document.getElementById('chart-bar'));
+    const sentColors = { '正面':'#16a34a', '中性':'#f59e0b', '负面':'#ef4444' };
+    chart.setOption({
+      tooltip: { trigger:'axis', axisPointer:{type:'shadow'},
+        formatter: params => {
+          let s = params[0].axisValue + '<br>';
+          params.forEach(p => s += `${p.marker}${p.seriesName}: ${p.value}<br>`);
+          return s;
+        }
+      },
+      legend: { top:4, itemWidth:12, textStyle:{fontSize:12} },
+      grid: { left:'12%', right:'4%', top:'12%', bottom:'8%' },
+      xAxis: { type:'value', axisLabel:{fontSize:11} },
+      yAxis: { type:'category', data: data.brands, axisLabel:{fontSize:12} },
+      series: data.series.map(s => ({
+        name: s.name, type:'bar', stack:'total',
+        itemStyle:{ color: sentColors[s.name] },
+        label: { show:true, formatter: p => p.value > 3 ? p.value : '' },
+        data: s.data
+      }))
+    });
+
+    // 右侧品牌好评率列表
+    const sorted = [...data.brand_stats].sort((a,b) => b.pos_rate - a.pos_rate);
+    const list = document.getElementById('brand-rank-list');
+    sorted.forEach((b, i) => {
+      list.innerHTML += `
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+            <span><b>${i+1}.</b> ${b.brand}</span>
+            <span style="color:${b.pos_rate>=70?'#16a34a':b.pos_rate>=50?'#f59e0b':'#ef4444'};font-weight:700">${b.pos_rate}%</span>
+          </div>
+          <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${b.pos_rate}%;background:${b.pos_rate>=70?'#16a34a':b.pos_rate>=50?'#f59e0b':'#ef4444'};border-radius:3px"></div>
+          </div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px">共 ${b.total} 条评论</div>
+        </div>`;
+    });
+
+    window.addEventListener('resize', () => chart.resize());
+  });
+</script>
+{% endblock %}

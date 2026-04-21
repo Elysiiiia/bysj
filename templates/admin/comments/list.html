@@ -1,0 +1,87 @@
+{% extends "base_admin.html" %}
+{% block title %}评论管理 — 后台{% endblock %}
+{% block page_title %}评论管理{% endblock %}
+{% block breadcrumb %}后台管理 / 评论管理{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <div class="table-toolbar">
+      <form method="GET" style="display:flex;gap:10px;align-items:center">
+        <input type="text" name="q" value="{{ kw }}" placeholder="搜索昵称、品牌、评论内容..."
+               class="search-input">
+        <button type="submit" class="btn btn-primary">🔍 搜索</button>
+        <a href="/admin/comments" class="btn btn-secondary">重置</a>
+      </form>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="table-total">共 {{ total }} 条记录</span>
+        <a href="/admin/comments/add" class="btn btn-success">+ 新增评论</a>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>品牌</th>
+            <th>用户昵称</th>
+            <th>评分</th>
+            <th>商品规格</th>
+            <th>评论内容</th>
+            <th>情感标签</th>
+            <th>情感分值</th>
+            <th>评论日期</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td><span class="badge badge-primary">{{ r.brand }}</span></td>
+            <td>{{ r.nickname }}</td>
+            <td><span style="color:#f59e0b">{{ '★' * (r.rating|round|int) }}{{ '☆' * (5 - r.rating|round|int) }}</span></td>
+            <td style="font-size:11px;color:#64748b">{{ r.spec[:20] if r.spec else '-' }}</td>
+            <td><div class="text-truncate-2">{{ r.content }}</div></td>
+            <td>
+              <span class="badge
+                {% if r.sentiment_label == 'positive' %}badge-success
+                {% elif r.sentiment_label == 'neutral' %}badge-warning
+                {% else %}badge-danger{% endif %}">
+                {{ r.sentiment_label|sentiment_zh }}
+              </span>
+            </td>
+            <td style="font-size:12px;font-weight:600;
+              color:{{ '#16a34a' if (r.sentiment_score or 0.5)>=0.75 else ('#d97706' if (r.sentiment_score or 0.5)>=0.5 else '#dc2626') }}">
+              {{ ((r.sentiment_score or 0.5)*100)|round|int }}%
+            </td>
+            <td style="font-size:11px;color:#94a3b8">{{ r.comment_date[:10] if r.comment_date else '' }}</td>
+            <td>
+              <div class="action-btns">
+                <a href="/admin/comments/edit/{{ r.id }}" class="btn-table btn-sm-edit">编辑</a>
+                <form method="POST" action="/admin/comments/delete/{{ r.id }}" style="display:inline"
+                      onsubmit="return confirm('确认删除？')">
+                  <button type="submit" class="btn-table btn-sm-delete">删除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:30px">暂无数据</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination-wrap">
+      {% if page > 1 %}<a href="?page={{ page-1 }}&q={{ kw }}" class="page-btn">‹</a>{% else %}<span class="page-btn disabled">‹</span>{% endif %}
+      {% for p in range([1,page-2]|max, [total_pages,page+2]|min + 1) %}
+        <a href="?page={{ p }}&q={{ kw }}" class="page-btn {{ 'active' if p==page else '' }}">{{ p }}</a>
+      {% endfor %}
+      {% if page < total_pages %}<a href="?page={{ page+1 }}&q={{ kw }}" class="page-btn">›</a>{% else %}<span class="page-btn disabled">›</span>{% endif %}
+      <span class="pagination-info">第 {{ page }}/{{ total_pages }} 页</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

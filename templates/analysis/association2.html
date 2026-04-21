@@ -1,0 +1,146 @@
+{% extends "base_user.html" %}
+{% block title %}规格满意度关联分析{% endblock %}
+{% block page_title %}规格满意度关联分析{% endblock %}
+{% block breadcrumb %}<span>关联分析</span> / <span>规格满意度关联</span>{% endblock %}
+
+{% block content %}
+<div class="assoc-layout">
+  <!-- 主图表区域：上下分两块 -->
+  <div class="assoc-main-chart">
+    <div class="panel-header" style="padding:12px 18px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0;background:#fafbfc">
+      📈 商品规格 × 用户满意度关联分析
+      <span style="font-size:11px;font-weight:400;color:#64748b;margin-left:10px">
+        挖掘存储规格、价格区间与情感分数的关联规律
+      </span>
+    </div>
+    <div style="flex:1;display:grid;grid-template-rows:1fr 1fr;gap:0;overflow:hidden">
+      <!-- 规格情感柱状图 -->
+      <div style="border-bottom:1px solid #f1f5f9;padding:8px">
+        <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;padding:0 8px">各存储规格平均情感得分（%）</div>
+        <div id="chart-spec" style="height:calc(100% - 26px)"></div>
+      </div>
+      <!-- 价格区间情感折线 + 评分散点 -->
+      <div style="padding:8px">
+        <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;padding:0 8px">价格区间 × 情感均分关联</div>
+        <div id="chart-price-sent" style="height:calc(100% - 26px)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧 -->
+  <div class="assoc-sidebar">
+    <div class="card">
+      <div class="card-header">📌 分析说明</div>
+      <div class="card-body" style="font-size:12px;color:#64748b;line-height:1.8">
+        本模块挖掘商品规格参数与用户满意度的关联：
+        <ul style="padding-left:16px;margin:8px 0">
+          <li>分析不同存储配置对应的情感得分差异</li>
+          <li>揭示价格区间与用户好评率的关联规律</li>
+          <li>为消费者选购提供数据参考</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 散点图：评分 vs 情感分 -->
+    <div class="card" style="flex:1;overflow:hidden">
+      <div class="card-header">🔵 评分 vs 情感分散点图</div>
+      <div class="card-body" style="padding:8px;height:calc(100% - 44px)">
+        <div id="chart-scatter" style="width:100%;height:100%"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">📊 规格数据排名</div>
+      <div class="card-body" style="padding:12px;font-size:12px;max-height:200px;overflow-y:auto">
+        <div id="spec-rank"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>.content-body { padding:14px 20px; }</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/echarts.min.js"></script>
+<script>
+const COLORS = ['#2563eb','#16a34a','#f59e0b','#ef4444','#7c3aed','#0891b2'];
+
+fetch('/analysis/api/association2')
+  .then(r => r.json())
+  .then(data => {
+
+    // 规格情感柱状图
+    const chartSpec = echarts.init(document.getElementById('chart-spec'));
+    const specSorted = [...data.spec_data].sort((a,b) => b.avg_sentiment_pct - a.avg_sentiment_pct);
+    chartSpec.setOption({
+      tooltip: { trigger:'axis', axisPointer:{type:'shadow'},
+        formatter: p => `${p[0].axisValue}<br>情感分：${p[0].value}%<br>评论数：${specSorted[p[0].dataIndex]?.count||0}` },
+      grid: { left:'14%', right:'6%', top:'4%', bottom:'18%' },
+      xAxis: { type:'category', data: specSorted.map(d=>d.spec),
+               axisLabel:{ fontSize:10, rotate:30, interval:0 } },
+      yAxis: { type:'value', min:0, max:100, axisLabel:{formatter:v=>v+'%'} },
+      series: [{
+        type:'bar', barMaxWidth:32,
+        data: specSorted.map((d,i) => ({
+          value: d.avg_sentiment_pct,
+          itemStyle:{ color: d.avg_sentiment_pct>=65?'#16a34a':d.avg_sentiment_pct>=45?'#f59e0b':'#ef4444',
+            borderRadius:[4,4,0,0] }
+        })),
+        label:{ show:true, position:'top', formatter:p=>p.value+'%', fontSize:10 }
+      }]
+    });
+
+    // 价格区间情感折线图
+    const chartPS = echarts.init(document.getElementById('chart-price-sent'));
+    chartPS.setOption({
+      tooltip: { trigger:'axis' },
+      grid: { left:'12%', right:'6%', top:'8%', bottom:'18%' },
+      xAxis: { type:'category', data: data.price_sentiment.map(d=>d.range),
+               axisLabel:{ fontSize:11, rotate:15 } },
+      yAxis: { type:'value', min:0, max:1, axisLabel:{ formatter:v=>Math.round(v*100)+'%' } },
+      series: [{
+        type:'line', smooth:true, symbol:'circle', symbolSize:8,
+        data: data.price_sentiment.map(d=>d.avg),
+        itemStyle:{ color:'#2563eb' },
+        areaStyle:{ color:{ type:'linear',x:0,y:0,x2:0,y2:1,
+          colorStops:[{offset:0,color:'rgba(37,99,235,.3)'},{offset:1,color:'rgba(37,99,235,.02)'}] } },
+        label:{ show:true, formatter:p=>Math.round(p.value*100)+'%', fontSize:11 }
+      }]
+    });
+
+    // 散点图
+    const chartScat = echarts.init(document.getElementById('chart-scatter'));
+    const brandSet = [...new Set(data.scatter.map(d=>d.brand))];
+    chartScat.setOption({
+      tooltip: { formatter: p => `评分：${p.value[0]}<br>情感：${(p.value[1]*100).toFixed(0)}%<br>${p.seriesName}` },
+      legend: { top:0, itemWidth:10, textStyle:{fontSize:10} },
+      grid: { left:'12%', right:'6%', top:'22%', bottom:'12%' },
+      xAxis: { type:'value', name:'评分', min:1, max:5, nameTextStyle:{fontSize:11} },
+      yAxis: { type:'value', name:'情感分', min:0, max:1, axisLabel:{formatter:v=>Math.round(v*100)+'%'}, nameTextStyle:{fontSize:11} },
+      series: brandSet.map((brand,i) => ({
+        name: brand,
+        type:'scatter', symbolSize:6,
+        itemStyle:{ color: COLORS[i%COLORS.length], opacity:.7 },
+        data: data.scatter.filter(d=>d.brand===brand).map(d=>[d.x, d.y])
+      }))
+    });
+
+    // 规格排名列表
+    const el = document.getElementById('spec-rank');
+    specSorted.slice(0,8).forEach((d,i) => {
+      const color = d.avg_sentiment_pct>=65?'#16a34a':d.avg_sentiment_pct>=45?'#f59e0b':'#ef4444';
+      el.innerHTML += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9">
+        <span>${i+1}. ${d.spec}</span>
+        <span style="color:${color};font-weight:700">${d.avg_sentiment_pct}%</span>
+      </div>`;
+    });
+
+    window.addEventListener('resize', () => {
+      [chartSpec, chartPS, chartScat].forEach(c => c.resize());
+    });
+  });
+</script>
+{% endblock %}
