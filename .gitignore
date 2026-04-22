@@ -1,0 +1,11 @@
+.idea/
+.venv/
+__pycache__/
+*.pyc
+
+backend/target/
+frontend/node_modules/
+frontend/dist/
+
+.env
+*.log
