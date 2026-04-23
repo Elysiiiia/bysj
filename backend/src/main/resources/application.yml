@@ -6,9 +6,14 @@ spring:
     name: phone-recommend-backend
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/phone_recommend?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/sys?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: root
+    password: sun123456
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+      continue-on-error: true
 
 mybatis-plus:
   configuration:
