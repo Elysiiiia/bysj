@@ -5,13 +5,17 @@ import com.jy26n139.phonerecommend.common.PageResult;
 import com.jy26n139.phonerecommend.config.AuthContext;
 import com.jy26n139.phonerecommend.dto.TrackRequest;
 import com.jy26n139.phonerecommend.entity.Phone;
+import com.jy26n139.phonerecommend.entity.Comment;
+import com.jy26n139.phonerecommend.mapper.CommentMapper;
 import com.jy26n139.phonerecommend.service.BehaviorService;
 import com.jy26n139.phonerecommend.service.PhoneService;
 import com.jy26n139.phonerecommend.service.RecommendationService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/phones")
@@ -19,11 +23,13 @@ public class PhoneController {
     private final PhoneService phoneService;
     private final RecommendationService recommendationService;
     private final BehaviorService behaviorService;
+    private final CommentMapper commentMapper;
 
-    public PhoneController(PhoneService phoneService, RecommendationService recommendationService, BehaviorService behaviorService) {
+    public PhoneController(PhoneService phoneService, RecommendationService recommendationService, BehaviorService behaviorService, CommentMapper commentMapper) {
         this.phoneService = phoneService;
         this.recommendationService = recommendationService;
         this.behaviorService = behaviorService;
+        this.commentMapper = commentMapper;
     }
 
     @GetMapping
@@ -50,9 +56,14 @@ public class PhoneController {
         if (userId != null) {
             behaviorService.record(userId, productId, "view");
         }
+        List<Comment> comments = commentMapper.selectList(new LambdaQueryWrapper<Comment>().eq(Comment::getProductId, productId));
+        Map<String, Long> sentMap = comments.stream()
+                .collect(Collectors.groupingBy(c -> c.getSentimentLabel() == null ? "neutral" : c.getSentimentLabel(), Collectors.counting()));
         return ApiResult.ok(Map.of(
                 "phone", phoneService.byProductId(productId),
-                "related", recommendationService.similar(productId, 4)
+                "related", recommendationService.similar(productId, 4),
+                "totalComments", comments.size(),
+                "sentMap", sentMap
         ));
     }
 

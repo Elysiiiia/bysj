@@ -41,11 +41,25 @@ public class AnalysisService {
     }
 
     public Map<String, Object> adminStats() {
+        List<Phone> phones = phoneMapper.selectList(null);
+        List<Comment> recentComments = commentMapper.selectList(
+                new LambdaQueryWrapper<Comment>().orderByDesc(Comment::getId).last("limit 5")
+        );
+        List<Map<String, Object>> brandCounts = phones.stream()
+                .filter(phone -> phone.getBrand() != null)
+                .collect(Collectors.groupingBy(Phone::getBrand, Collectors.counting()))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(5)
+                .map(e -> Map.<String, Object>of("brand", e.getKey(), "cnt", e.getValue()))
+                .toList();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("phones", phoneMapper.selectCount(null));
         result.put("comments", commentMapper.selectCount(null));
         result.put("users", userMapper.selectCount(null));
         result.put("behaviors", behaviorMapper.selectCount(null));
+        result.put("brands", brandCounts);
+        result.put("recentComments", recentComments);
         return result;
     }
 
