@@ -7,6 +7,7 @@ import com.jy26n139.phonerecommend.mapper.PhoneMapper;
 import com.jy26n139.phonerecommend.service.BehaviorService;
 import com.jy26n139.phonerecommend.service.RecommendationService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.jy26n139.phonerecommend.dto.RecommendationExplainResponse;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +28,11 @@ public class RecommendationController {
     @GetMapping
     public ApiResult<List<Phone>> recommend(@RequestParam(defaultValue = "8") int limit) {
         return ApiResult.ok(recommendationService.recommend(AuthContext.userId(), limit));
+    }
+
+    @GetMapping("/explain")
+    public ApiResult<RecommendationExplainResponse> explain(@RequestParam(defaultValue = "8") int limit) {
+        return ApiResult.ok(recommendationService.explainRecommendations(AuthContext.userId(), limit));
     }
 
     @GetMapping("/history")

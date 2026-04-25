@@ -17,11 +17,34 @@
         <div class="card">
           <div class="card-header">⭐ 为您推荐 <span style="font-weight:400;font-size:12px;color:#64748b">{{ rows.length }} 件</span></div>
           <div class="card-body">
-            <div v-if="rows.length" class="phone-grid"><PhoneCard v-for="phone in rows" :key="phone.id" :phone="phone" /></div>
+            <div v-if="rows.length" class="phone-grid"><PhoneCard v-for="item in rows" :key="item.phone.id" :phone="item.phone" /></div>
             <div v-else style="text-align:center;padding:50px;color:#94a3b8">
               <div style="font-size:48px">📭</div>
               <p>暂无推荐，请先浏览一些商品</p>
               <RouterLink to="/products" class="btn btn-primary">去浏览商品</RouterLink>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">🧠 推荐解释 <span style="font-weight:400;font-size:12px;color:#64748b">{{ summary }}</span></div>
+          <div class="card-body">
+            <div v-if="rows.length" class="recommend-explain-list">
+              <div v-for="item in rows" :key="`${item.phone.productId}-explain`" class="recommend-explain-card">
+                <div class="recommend-explain-top">
+                  <div>
+                    <div class="recommend-explain-title">{{ item.phone.title }}</div>
+                    <div class="recommend-explain-meta">策略：{{ strategyLabel(item.strategy) }} · 商品编号：{{ item.phone.productId }}</div>
+                  </div>
+                  <div class="recommend-explain-score">总分 {{ item.finalScore.toFixed(4) }}</div>
+                </div>
+                <div class="recommend-explain-grid">
+                  <div>协同过滤分：{{ item.cfScore.toFixed(4) }}</div>
+                  <div>偏好融合分：{{ item.sentimentScore.toFixed(4) }}</div>
+                  <div>冷启动分：{{ item.coldStartScore.toFixed(4) }}</div>
+                  <div>命中来源：{{ item.sourceProducts.length ? item.sourceProducts.join(' / ') : '无' }}</div>
+                </div>
+                <div class="recommend-explain-actions">来源行为：{{ item.sourceActions.length ? item.sourceActions.join('，') : '无直接行为来源' }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -69,8 +92,18 @@ import { api } from '../api'
 
 const rows = ref([])
 const history = ref([])
+const summary = ref('')
+function strategyLabel(value) {
+  return ({
+    item_cf: 'Item-CF 协同过滤',
+    preference: '偏好补充',
+    cold_start: '冷启动补位'
+  })[value] || value
+}
 onMounted(async () => {
-  rows.value = (await api.get('/recommendations?limit=16')).data || []
+  const explain = (await api.get('/recommendations/explain?limit=16')).data || {}
+  rows.value = explain.items || []
+  summary.value = explain.summary || ''
   history.value = (await api.get('/recommendations/history?limit=8')).data || []
 })
 </script>
