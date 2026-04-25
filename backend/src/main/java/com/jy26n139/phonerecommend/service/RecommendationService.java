@@ -2,6 +2,7 @@ package com.jy26n139.phonerecommend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jy26n139.phonerecommend.entity.Phone;
+import com.jy26n139.phonerecommend.entity.UserBehavior;
 import com.jy26n139.phonerecommend.mapper.PhoneMapper;
 import org.springframework.stereotype.Service;
 
@@ -18,8 +19,8 @@ public class RecommendationService {
     }
 
     public List<Phone> recommend(Long userId, int topN) {
-        List<String> history = behaviorService.history(userId, 30);
-        if (history.isEmpty()) {
+        List<UserBehavior> behaviors = behaviorService.recent(userId, 30);
+        if (behaviors.isEmpty()) {
             return coldStart(topN);
         }
         List<Phone> all = phoneMapper.selectList(null);
@@ -27,26 +28,38 @@ public class RecommendationService {
         for (Phone phone : all) {
             byId.put(phone.getProductId(), phone);
         }
-        Set<String> excluded = new HashSet<>(history);
+        Set<String> excluded = behaviors.stream()
+                .map(UserBehavior::getProductId)
+                .filter(Objects::nonNull)
+                .collect(HashSet::new, HashSet::add, HashSet::addAll);
         Map<String, Double> scores = new HashMap<>();
-        for (String pid : history) {
-            Phone source = byId.get(pid);
+        for (UserBehavior behavior : behaviors) {
+            Phone source = byId.get(behavior.getProductId());
             if (source == null) {
                 continue;
             }
+            double weight = preferenceWeight(behavior.getAction());
             for (Phone candidate : all) {
                 if (candidate.getProductId() == null || excluded.contains(candidate.getProductId())) {
                     continue;
                 }
-                double score = similarity(source, candidate);
+                double score = similarity(source, candidate) * weight;
                 scores.merge(candidate.getProductId(), score, Double::sum);
             }
         }
-        return scores.entrySet().stream()
+        List<Phone> recommended = scores.entrySet().stream()
+                .filter(e -> e.getValue() > 0)
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .limit(topN)
                 .map(e -> byId.get(e.getKey()))
                 .filter(Objects::nonNull)
+                .toList();
+        if (!recommended.isEmpty()) {
+            return recommended;
+        }
+        return coldStart(topN).stream()
+                .filter(phone -> phone.getProductId() != null && !excluded.contains(phone.getProductId()))
+                .limit(topN)
                 .toList();
     }
 
@@ -79,5 +92,18 @@ public class RecommendationService {
                 - (b.getSentimentScore() == null ? 0.5 : b.getSentimentScore()));
         double rating = (b.getAvgRating() == null ? 3.0 : b.getAvgRating()) / 5.0;
         return brand + price * 0.25 + sentiment * 0.25 + rating * 0.10;
+    }
+
+    private double preferenceWeight(String action) {
+        if (action == null || action.isBlank()) {
+            return 1.0;
+        }
+        return switch (action) {
+            case "like" -> 1.6;
+            case "comment_positive" -> 1.3;
+            case "comment_neutral" -> 0.9;
+            case "comment_negative" -> -1.2;
+            default -> 1.0;
+        };
     }
 }

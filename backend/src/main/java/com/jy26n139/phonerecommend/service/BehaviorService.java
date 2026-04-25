@@ -5,6 +5,7 @@ import com.jy26n139.phonerecommend.entity.UserBehavior;
 import com.jy26n139.phonerecommend.mapper.UserBehaviorMapper;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -24,6 +25,9 @@ public class BehaviorService {
     }
 
     public List<String> history(Long userId, int limit) {
+        if (userId == null) {
+            return List.of();
+        }
         return behaviorMapper.selectList(new LambdaQueryWrapper<UserBehavior>()
                         .eq(UserBehavior::getUserId, userId)
                         .orderByDesc(UserBehavior::getCreatedAt)
@@ -32,5 +36,15 @@ public class BehaviorService {
                 .map(UserBehavior::getProductId)
                 .distinct()
                 .toList();
+    }
+
+    public List<UserBehavior> recent(Long userId, int limit) {
+        if (userId == null) {
+            return Collections.emptyList();
+        }
+        return behaviorMapper.selectList(new LambdaQueryWrapper<UserBehavior>()
+                .eq(UserBehavior::getUserId, userId)
+                .orderByDesc(UserBehavior::getCreatedAt)
+                .last("limit " + limit));
     }
 }

@@ -66,6 +66,52 @@
       </div>
     </div>
     <div class="card" style="margin-bottom:20px">
+      <div class="card-header">✍ 发表评价</div>
+      <div class="card-body">
+        <form class="comment-form" @submit.prevent="submitComment">
+          <div class="comment-form-grid">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="comment-form-label">用户名</label>
+              <input :value="auth.user?.username || ''" type="text" class="form-control" disabled />
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="comment-form-label">评分</label>
+              <select v-model.number="commentForm.rating" class="form-control" required>
+                <option v-for="i in 5" :key="i" :value="i">{{ i }} 星 {{ stars(i) }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="comment-form-grid">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="comment-form-label">规格</label>
+              <input v-model.trim="commentForm.spec" type="text" class="form-control" placeholder="如 12GB+256GB" />
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="comment-form-label">评论日期</label>
+              <input :value="commentDatePreview" type="text" class="form-control" disabled />
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="comment-form-label">评论内容</label>
+            <textarea
+              v-model.trim="commentForm.content"
+              class="form-control comment-form-textarea"
+              rows="4"
+              maxlength="300"
+              placeholder="说说你的真实使用感受"
+              required
+            />
+            <div class="comment-form-hint">提交后会更新该商品评论区和后续个性化推荐权重。</div>
+          </div>
+          <div class="comment-form-actions">
+            <button type="submit" class="btn btn-primary" :disabled="submittingComment">
+              {{ submittingComment ? '提交中...' : '提交评论' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
       <div class="card-header">💬 用户评论 <span style="font-size:12px;font-weight:400;color:#64748b">({{ totalComments }} 条)</span></div>
       <div class="card-body">
         <div v-for="comment in comments" :key="comment.id" class="comment-card">
@@ -89,18 +135,26 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
 import PhoneCard from '../components/PhoneCard.vue'
 import { api } from '../api'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
 const phone = ref(null)
 const related = ref([])
 const comments = ref([])
 const sentMap = ref({})
 const totalComments = ref(0)
+const submittingComment = ref(false)
+const commentForm = reactive({
+  rating: 5,
+  spec: '',
+  content: ''
+})
 function label(v) { return ({ positive: '正面', neutral: '中性', negative: '负面' })[v] || '中性' }
 function labelClass(v) { return ({ positive: 'sentiment-positive', neutral: 'sentiment-neutral', negative: 'sentiment-negative' })[v] || 'sentiment-neutral' }
 function stars(rating = 3) {
@@ -115,20 +169,56 @@ function sentimentClass(score = 0.5) {
 const sentPct = computed(() => Math.round((phone.value?.sentimentScore || 0.5) * 100))
 const meterClass = computed(() => sentPct.value >= 65 ? 'meter-positive' : sentPct.value >= 40 ? 'meter-neutral' : 'meter-negative')
 const detailSentimentText = computed(() => sentPct.value >= 75 ? '好评如潮' : sentPct.value >= 50 ? '评价一般' : '差评较多')
+const commentDatePreview = computed(() => formatNow())
 function distWidth(key) {
   const total = Object.values(sentMap.value).reduce((sum, item) => sum + Number(item || 0), 0)
   return total ? `${Math.round((sentMap.value[key] || 0) / total * 100)}%` : '0%'
 }
-async function like() {
-  await api.post('/phones/track', { productId: route.params.productId, action: 'like' })
-  alert('已标记喜欢，推荐算法将根据您的偏好更新！')
+function formatNow() {
+  const now = new Date()
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
 }
-onMounted(async () => {
+async function loadDetail() {
   const detail = await api.get(`/phones/${route.params.productId}`)
   phone.value = detail.data.phone
   related.value = detail.data.related || []
   sentMap.value = detail.data.sentMap || {}
   totalComments.value = detail.data.totalComments || 0
+}
+async function loadComments() {
   comments.value = (await api.get('/comments', { params: { productId: route.params.productId, pageSize: 5 } })).data.rows || []
+}
+async function like() {
+  await api.post('/phones/track', { productId: route.params.productId, action: 'like' })
+  alert('已标记喜欢，推荐算法将根据您的偏好更新！')
+}
+async function submitComment() {
+  if (!commentForm.content) {
+    return
+  }
+  submittingComment.value = true
+  try {
+    await api.post('/comments', {
+      productId: route.params.productId,
+      brand: phone.value?.brand || '',
+      title: phone.value?.title || '',
+      nickname: auth.user?.username || '匿名用户',
+      rating: commentForm.rating,
+      spec: commentForm.spec,
+      commentDate: formatNow(),
+      content: commentForm.content
+    })
+    commentForm.rating = 5
+    commentForm.spec = ''
+    commentForm.content = ''
+    await Promise.all([loadDetail(), loadComments()])
+    alert('评论已提交，推荐偏好已更新。')
+  } finally {
+    submittingComment.value = false
+  }
+}
+onMounted(async () => {
+  await Promise.all([loadDetail(), loadComments()])
 })
 </script>
