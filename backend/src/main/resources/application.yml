@@ -24,5 +24,4 @@ mybatis-plus:
 
 app:
   jwt-secret: "phoneRecommendSystem2024SecretKeyJavaJwtMinLength32"
-  sentiment-service-url: "http://localhost:8000"
   cors-origin: "http://localhost:5173"

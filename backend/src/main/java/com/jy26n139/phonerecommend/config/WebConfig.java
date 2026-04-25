@@ -1,9 +1,7 @@
 package com.jy26n139.phonerecommend.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -17,11 +15,6 @@ public class WebConfig implements WebMvcConfigurer {
     public WebConfig(AuthInterceptor authInterceptor, JwtProperties properties) {
         this.authInterceptor = authInterceptor;
         this.properties = properties;
-    }
-
-    @Bean
-    RestClient sentimentRestClient() {
-        return RestClient.builder().baseUrl(properties.sentimentServiceUrl()).build();
     }
 
     @Override
