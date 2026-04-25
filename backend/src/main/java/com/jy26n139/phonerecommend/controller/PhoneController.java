@@ -69,12 +69,14 @@ public class PhoneController {
 
     @PostMapping
     public ApiResult<Void> save(@RequestBody Phone phone) {
+        AuthContext.requireAdmin();
         phoneService.save(phone);
         return ApiResult.ok(null);
     }
 
     @DeleteMapping("/{id}")
     public ApiResult<Void> delete(@PathVariable Long id) {
+        AuthContext.requireAdmin();
         phoneService.delete(id);
         return ApiResult.ok(null);
     }

@@ -1,6 +1,7 @@
 package com.jy26n139.phonerecommend.controller;
 
 import com.jy26n139.phonerecommend.common.ApiResult;
+import com.jy26n139.phonerecommend.config.AuthContext;
 import com.jy26n139.phonerecommend.service.AnalysisService;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,7 @@ public class AnalysisController {
 
     @GetMapping("/admin")
     public ApiResult<Map<String, Object>> adminStats() {
+        AuthContext.requireAdmin();
         return ApiResult.ok(analysisService.adminStats());
     }
 

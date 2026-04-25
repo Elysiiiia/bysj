@@ -1,5 +1,8 @@
 package com.jy26n139.phonerecommend.config;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 public final class AuthContext {
     private static final ThreadLocal<AuthUser> CURRENT = new ThreadLocal<>();
 
@@ -17,6 +20,17 @@ public final class AuthContext {
     public static Long userId() {
         AuthUser user = CURRENT.get();
         return user == null ? null : user.userId();
+    }
+
+    public static String role() {
+        AuthUser user = CURRENT.get();
+        return user == null ? null : user.role();
+    }
+
+    public static void requireAdmin() {
+        if (!"admin".equals(role())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin role required");
+        }
     }
 
     public static void clear() {
